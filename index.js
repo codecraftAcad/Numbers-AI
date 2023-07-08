@@ -483,7 +483,7 @@ bot.onText(/\/analyze/, (msg) => {
       // Call the analyzeAddrTokenProfit function
       analyzeAddrTokenProfit(walletAddress, contractAddress)
         .then((profit) => {
-          const formattedProfit = parseFloat(profit).toFixed(2);
+          const formattedProfit = parseFloat(profit).toFixed(6);
           bot.sendMessage(chatId, `💰 Total profit for wallet ${walletAddress}: ${formattedProfit}USD`);
         })
         .catch((error) => {
