@@ -4,7 +4,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const botToken = '6387844458:AAHaBXg5gVbZec0ZCrpe83aHNNAH_oGlU84';
 const bot = new TelegramBot(botToken, { polling: true });
 const axios = require('axios');
-
+const https = require('https')
 class Crypto {
   constructor(apiKey, secretKey) {
     this.apiKey = apiKey;
@@ -159,34 +159,186 @@ class Crypto {
 // Example usage
 const crypto = new Crypto('your-api-key', 'your-secret-key');
 
-// // Call the functions and handle the responses
-// crypto.ping().then((result) => {
-//   console.log('Ping result:', result);
-// });
 
-// crypto.getPrice('BTCUSDT', 'ETHUSDT').then((prices) => {
-//   console.log('Prices:', prices);
-// });
+// Replace 'YOUR_API_KEY' with your actual API key
+const apiKey = '5U9P2CYXAKXVZX6Q9MA17PICY1RW2QIU1N';
 
-// crypto.getFuturesPrice('BTCUSDT').then((price) => {
-//   console.log('Futures price:', price);
-// });
+// Sample API object with placeholder functions
 
-// crypto.getUFutureKline('15m', 3, 'BTCUSDT').then((kline) => {
-//   console.log('UFuture kline:', kline);
-// });
 
-// crypto.getMemePrice('query', 'eth').then((pair) => {
-//   console.log('Meme price:', pair);
-// });
+const api = {
+  async getTokenPrice(address) {
+    const url = `https://api.dexscreener.com/latest/dex/search/?q=${address}`;
+    
+    try {
+      const response = await axios.get(url);
+      const data = response.data;
+      
+      // // Debug output to inspect the API response
+      // console.log('API Response:', data);
+      
+      // Assuming the response contains an array of pairs
+      if (data && Array.isArray(data.pairs) && data.pairs.length > 0) {
+        const pairs = data.pairs;
+        const priceusd = pairs[0].priceUsd
+        console.log('price:', priceusd )
+        return priceusd
+      } else {
+        throw new Error('No data or invalid response');
+      }
+    } catch (error) {
+      console.error('Error fetching price:', error.message);
+      throw error;
+    }
+  },
 
-// crypto.getMemeCheck('query', 'eth').then((memeChecker) => {
-//   console.log('Meme check:', memeChecker);
-// });
+  getTokenDecimals: (tokenSymbol) => {
+    // Implement logic to fetch token decimals based on token symbol
+    // Return the token decimals
+  }
+};
 
-// crypto.honeypotCheck('address').then((result) => {
-//   console.log('Honeypot check:', result);
-// });
+// Sample Task object
+const Task = {};
+
+// Sample Probed object
+const Probed = {};
+
+function analyzeAddrTokenProfit(walletAddress, contractAddress) {
+  return new Promise((resolve, reject) => {
+    const url = `https://api.etherscan.io/api?module=account&action=tokenbalance&contractaddress=${contractAddress}&address=${walletAddress}&tag=latest&apikey=${apiKey}`;
+  
+    https.get(url, async (res) => {
+      let data = '';
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      res.on('end', async () => {
+        const balanceResponse = JSON.parse(data);
+        if (balanceResponse.status === '1') {
+          const balance = parseFloat(balanceResponse.result) / Math.pow(10, 18); // Adjust for token decimals
+          const price = await api.getTokenPrice(contractAddress); // Fetch token price
+          const profit = (balance * price).toFixed(2);
+          console.log('Total profit for wallet', walletAddress, 'and contract', contractAddress, ':', profit);
+          resolve(profit);
+        } else {
+          console.log(balanceResponse);
+          console.log('Failed to retrieve token balance.');
+          reject(new Error('Failed to retrieve token balance.'));
+        }
+      });
+    }).on('error', (err) => {
+      console.error('Error:', err.message);
+      reject(err);
+    });
+  });
+}
+
+
+function smartAddrFinder(walletAddress, minProfit, minHolding) {
+  const url = `https://api.etherscan.io/api?module=account&action=txlist&address=${walletAddress}&startblock=0&endblock=99999999&sort=asc&apikey=${apiKey}`;
+  https.get(url, (res) => {
+    let data = '';
+    res.on('data', (chunk) => {
+      data += chunk;
+    });
+    res.on('end', () => {
+      const txListResponse = JSON.parse(data);
+      if (txListResponse.status === '1') {
+        const transactions = txListResponse.result;
+        const tokenMap = {};
+
+        for (let i = 0; i < transactions.length; i++) {
+          const tx = transactions[i];
+          const tokenSymbol = tx.tokenSymbol;
+          const tokenValue = parseFloat(tx.value) / Math.pow(10, api.getTokenDecimals(tokenSymbol));
+          const tokenPrice = api.getTokenPrice(tokenSymbol);
+          const profit = tokenValue * tokenPrice;
+
+          if (profit >= minProfit) {
+            if (!tokenMap[tokenSymbol]) {
+              tokenMap[tokenSymbol] = {
+                addresses: [],
+                totalProfit: 0,
+              };
+            }
+            tokenMap[tokenSymbol].addresses.push(walletAddress);
+            tokenMap[tokenSymbol].totalProfit += profit;
+          }
+        }
+
+        for (let symbol in tokenMap) {
+          const tokenData = tokenMap[symbol];
+          if (tokenData.addresses.length >= minHolding) {
+            console.log('Smart addresses for token', symbol);
+            console.log('Total Profit:', tokenData.totalProfit);
+            console.log('Addresses:', tokenData.addresses);
+          }
+        }
+      } else {
+        console.log('Failed to retrieve transaction list.');
+      }
+    });
+  }).on('error', (err) => {
+    console.error('Error:', err.message);
+  });
+}
+
+function listWalletTracking() {
+  const trackedAddresses = Object.keys(Task);
+  console.log('Currently tracked addresses:');
+  trackedAddresses.forEach((address) => {
+    console.log(address);
+  });
+}
+
+function listSmartAddrProbe() {
+  const probedAddresses = Object.keys(Probed);
+  console.log('Currently probed addresses:');
+  probedAddresses.forEach((address) => {
+    console.log(address);
+  });
+}
+
+function walletTxAnalyze(walletAddress, numTransactions) {
+  const url = `https://api.etherscan.io/api?module=account&action=txlist&address=${walletAddress}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}`;
+  https.get(url, (res) => {
+    let data = '';
+    res.on('data', (chunk) => {
+      data += chunk;
+      
+    });
+    res.on('end', () => {
+      const txListResponse = JSON.parse(data);
+      if (txListResponse.status === '1') {
+        const transactions = txListResponse.result.slice(0, numTransactions);
+        console.log('Transaction analysis for wallet', walletAddress);
+        transactions.forEach((tx) => {
+          const tokenSymbol = tx.tokenSymbol;
+          // const tokenValue = parseFloat(tx.value) / Math.pow(10, api.getTokenDecimals(tokenSymbol));
+          const tokenPrice = api.getTokenPrice(tokenSymbol);
+          // const profit = tokenValue * tokenPrice;
+          console.log('Transaction:', tx.hash);
+          console.log('Token Symbol:', tokenSymbol);
+          // console.log('Token Value:', tokenValue);
+          // console.log('Profit:', profit);
+          console.log('-------------------');
+        });
+      } else {
+        console.log('Failed to retrieve transaction list.');
+      }
+    });
+  }).on('error', (err) => {
+    console.error('Error:', err.message);
+  });
+}
+
+// const walletAddress = '0xEa23abDb7896141a56AA122e3dcF21C0085c954f';
+// const contractAddress = '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE';
+
+// analyzeAddrTokenProfit(walletAddress, contractAddress);
+// walletTxAnalyze(walletAddress, 30)
+
 
 
 
@@ -308,3 +460,42 @@ function formatMemeCheckResult(result) {
     return 'Error: Invalid meme check result.';
   }
 }
+
+
+bot.onText(/\/analyze/, (msg) => {
+  const chatId = msg.chat.id;
+  bot.sendMessage(chatId, 'Please provide the wallet address and contract address in the following format:\n/wallet <wallet_address> <contract_address>');
+
+  const messageListener = (msg) => {
+    if (msg.text) {
+      const input = msg.text.trim();
+      const inputArr = input.split(' ');
+
+      // Check if the input has the correct format
+      if (inputArr.length !== 3 || inputArr[0] !== '/wallet') {
+        bot.sendMessage(chatId, '⚠️ Invalid command. Please provide the wallet address and contract address in the correct format:\n/wallet <wallet_address> <contract_address>');
+        return;
+      }
+
+      const walletAddress = inputArr[1];
+      const contractAddress = inputArr[2];
+
+      // Call the analyzeAddrTokenProfit function
+      analyzeAddrTokenProfit(walletAddress, contractAddress)
+        .then((profit) => {
+          const formattedProfit = parseFloat(profit).toFixed(2);
+          bot.sendMessage(chatId, `💰 Total profit for wallet ${walletAddress}: ${formattedProfit}USD`);
+        })
+        .catch((error) => {
+          bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+        });
+
+      // Remove the message listener after executing once
+      bot.removeListener('message', messageListener);
+    }
+  };
+
+  // Add the message listener
+  bot.on('message', messageListener);
+});
+
