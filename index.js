@@ -218,7 +218,7 @@ function analyzeAddrTokenProfit(walletAddress, contractAddress) {
         if (balanceResponse.status === '1') {
           const balance = parseFloat(balanceResponse.result) / Math.pow(10, 18); // Adjust for token decimals
           const price = await api.getTokenPrice(contractAddress); // Fetch token price
-          const profit = (balance * price).toFixed(2);
+          const profit = (balance * price).toFixed(6);
           console.log('Total profit for wallet', walletAddress, 'and contract', contractAddress, ':', profit);
           resolve(profit);
         } else {
