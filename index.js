@@ -1,7 +1,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 
 // Replace 'YOUR_TELEGRAM_BOT_TOKEN' with your actual bot token
-const botToken = '6387844458:AAHaBXg5gVbZec0ZCrpe83aHNNAH_oGlU84';
+const botToken = '7583674462:AAGuQrn38ZUcxsV7p4QrDjOHaTG5rTFt_Co';
 const bot = new TelegramBot(botToken, { polling: true });
 const axios = require('axios');
 const https = require('https')
